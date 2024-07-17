@@ -1,2 +1,1 @@
-Committed chaincode definition for chaincode 'basic' on channel 'channel1':
-Version: 1.0, Sequence: 1, Endorsement Plugin: escc, Validation Plugin: vscc, Approvals: [Org1MSP: true, Org2MSP: true]
+[34m2024-07-17 11:40:34.817 WIB 0001 INFO[0m [chaincodeCmd] [34;1mchaincodeInvokeOrQuery[0m -> Chaincode invoke successful. result: status:200 payload:"{\"id\":\"1\",\"doneAt\":\"kontol\",\"prescriptionId\":\"2\",\"doerId\":\"444\",\"type\":\"1\"}" 

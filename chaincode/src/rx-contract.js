@@ -5,12 +5,15 @@ const { Contract } = require('fabric-contract-api')
 const { Prescription, Activity, generateUniqueID } = require('./util/util')
 
 class RxContract extends Contract {
+
   async initLedger(ctx) {
-    await this.createRx(ctx, "1", "2024-07-17", 1234, 5678, 1, true, 5)
+    const prescription = new Prescription (1, "memek", 1234, 12355, undefined, 12, true, 3, true, undefined)
+
+    await ctx.stub.putState("1", Buffer.from(JSON.stringify(prescription)))
   }
 
   async createActivity(ctx, doneAt, prescriptionId, doerId, type, parentIds) {
-    const activityId = generateUniqueID();
+    const activityId = "1"
     const activity = new Activity(activityId, doneAt, prescriptionId, doerId, type, parentIds);
 
     return activity
@@ -26,10 +29,10 @@ class RxContract extends Contract {
   }
 
   async createRx(ctx, prescriptionId, createdAt, prescribedFor, prescribedBy, medicineId, isIter, iterCount) {
-    const prescription = new Prescription(prescriptionId, createdAt, prescribedFor, prescribedBy, null, medicineId, isIter, iterCount, true, null)
+    const prescription = new Prescription(prescriptionId, createdAt, prescribedFor, prescribedBy, undefined, medicineId, isIter, iterCount, true, undefined)
     await ctx.stub.putState(prescriptionId.toString(), Buffer.from(JSON.stringify(prescription)))
-    const activity = await this.createActivity(ctx, createdAt, prescriptionId, prescribedBy, "1", null)
-    await ctx.stub.putState(activity.id.toString(), Buffer.from(JSON.stringify(activity)));
+    const activity = await this.createActivity(ctx, createdAt, prescriptionId, prescribedBy, "1", undefined)
+    await ctx.stub.putState(activity.id, Buffer.from(JSON.stringify(activity)));
 
     return prescription
   }
