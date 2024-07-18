@@ -15,7 +15,7 @@ set -x
 # prescriptionId
 peer chaincode invoke -o localhost:7050 --ordererTLSHostnameOverride orderer.example.com --tls --cafile $ORDERER_CA \
 -C $CHANNEL_NAME -n ${CC_NAME} $PEER_CONN_PARMS \
--c '{"function":"getAsset","Args":["1"]}' \
+-c '{"function":"getAsset","Args":["7"]}' \
 >&log.txt
 
 { set +x; } 2>/dev/null
