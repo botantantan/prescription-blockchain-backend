@@ -9,5 +9,9 @@ export COMPOSE_PROJECT_NAME=rx
 
 ./network.sh up
 ./network.sh createChannel -c channel1
+./deploy-cc.sh
+
+docker ps -a
+
 # cd addOrg3
 # ./addOrg3.sh up -c channel1

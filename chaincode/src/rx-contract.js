@@ -1,100 +1,145 @@
 'use strict'
 
 const { Contract } = require('fabric-contract-api')
+const { Prescription, Activity, syntaxHighlight } = require('./util/util')
 
-const { Prescription, Activity, generateUniqueID } = require('./util/util')
+const stringify  = require('json-stringify-deterministic');
+const sortKeysRecursive  = require('sort-keys-recursive');
 
 class RxContract extends Contract {
-
-  async initLedger(ctx) {
-    const prescription = new Prescription (1, "memek", 1234, 12355, undefined, 12, true, 3, true, undefined)
-
-    await ctx.stub.putState("1", Buffer.from(JSON.stringify(prescription)))
+  constructor() {
+    super("RxContract")
+    this.activityIdCounter = "1000"
   }
 
-  async createActivity(ctx, doneAt, prescriptionId, doerId, type, parentIds) {
-    const activityId = "1"
-    const activity = new Activity(activityId, doneAt, prescriptionId, doerId, type, parentIds);
+  async initLedger(ctx) {    
+    const prescriptions = [
+      new Prescription("1", "2024-07-18", "1001", "2001", "1", "0", "0"),
+      new Prescription("2", "2024-07-18", "1002", "2002", "2", "0", "0"),
+      new Prescription("3", "2024-07-18", "1003", "2003", "3", "0", "0"),
+      new Prescription("4", "2024-07-18", "1004", "2004", "4", "1", "5"),
+      new Prescription("5", "2024-07-18", "1001", "2002", "5", "1", "3"),
+      new Prescription("6", "2024-07-18", "1006", "2006", "6", "1", "2")
+    ]
+
+    for (const prescription of prescriptions) {
+      await this.createRx(
+        ctx,
+        prescription.prescriptionId,
+        prescription.createdAt,
+        prescription.prescribedFor,
+        prescription.prescribedBy,
+        prescription.medicineId,
+        prescription.isIter,
+        prescription.iterCount)
+    }
+  }
+
+  async createActivity(ctx, doneAt, prescriptionId, doerId, type) {
+    const activity = new Activity(this.activityIdCounter, doneAt, prescriptionId, doerId, type)
+    this.activityIdCounter = (Number(this.activityIdCounter) + 1).toString()
 
     return activity
   }
 
-  async getActivity(ctx, activityId) {
-      const activityJSON = await ctx.stub.getState(activityId.toString());
-      if (!activityJSON || activityJSON.length === 0) {
-          throw new Error(`Activity ${activityId} does not exist`);
-      }
-
-      return JSON.parse(activityJSON.toString());
-  }
-
   async createRx(ctx, prescriptionId, createdAt, prescribedFor, prescribedBy, medicineId, isIter, iterCount) {
-    const prescription = new Prescription(prescriptionId, createdAt, prescribedFor, prescribedBy, undefined, medicineId, isIter, iterCount, true, undefined)
-    await ctx.stub.putState(prescriptionId.toString(), Buffer.from(JSON.stringify(prescription)))
-    const activity = await this.createActivity(ctx, createdAt, prescriptionId, prescribedBy, "1", undefined)
-    await ctx.stub.putState(activity.id, Buffer.from(JSON.stringify(activity)));
+    const prescription = new Prescription(prescriptionId, createdAt, prescribedFor, prescribedBy, medicineId, isIter, iterCount)
+    await ctx.stub.putState(prescriptionId, Buffer.from(JSON.stringify(prescription)))
+
+    const activity = await this.createActivity(ctx, createdAt, prescriptionId, prescribedBy, "1")
+    await ctx.stub.putState(activity.activityId, Buffer.from(JSON.stringify(activity)))
 
     return prescription
   }
 
-  async getRx(ctx, prescriptionId) {
-    const prescriptionJSON = await ctx.stub.getState(prescriptionId.toString())
-    if (!prescriptionJSON || prescriptionJSON.length === 0) {
-        throw new Error(`Prescription ${prescriptionId} does not exist`)
+  async getAssetObject(ctx, assetId) {
+    const assetJSON = await ctx.stub.getState(assetId)
+    if (!assetJSON || assetJSON.length === 0) {
+        throw new Error(`Asset ${assetId} does not exist`)
     }
     
-    return JSON.parse(prescriptionJSON.toString())
+    return JSON.parse(assetJSON.toString()) // object
   }
 
-  // asdasdsadadadadasd
+  // getAsset returns the asset stored in the world state with given id.
+  async getAsset(ctx, assetId) {
+    const assetJSON = await ctx.stub.getState(assetId) // get the asset from chaincode state
+    if (!assetJSON || assetJSON.length === 0) {
+        throw new Error(`The asset ${assetId} does not exist`)
+    }
+    console.log(assetJSON)
+    const strValue = JSON.parse(assetJSON.toString('utf8'))
+    console.log(strValue)
 
-  async terminateRx(ctx, id, terminatedAt, doctorId) {
-    const prescription = await this.getRx(ctx, id.toString())
-    prescription.isValid = false
-    prescription.terminatedAt = terminatedAt
-    await ctx.stub.putState(id.toString(), Buffer.from(JSON.stringify(prescription)))
-
-    const activityId = generateUniqueID()
-    const activity = new Activity(activityId, terminatedAt, id, doctorId, '2', null)
-    await ctx.stub.putState(activityId.toString(), Buffer.from(JSON.stringify(activity)))
+    return JSON.stringify(strValue, null, 2)
   }
 
-  async fillRx(ctx, id, pharmacistId) {
-    const prescription = await this.getRx(ctx, id)
-    if (prescription.isIter) {
-        if (parseInt(prescription.iterCount) > 1) {
-            // Reduce iterCount by 1
-            prescription.iterCount = (parseInt(prescription.iterCount) - 1).toString()
-            // Assign filledBy attribute with pharmacist id
-            prescription.filledBy = pharmacistId
-            await ctx.stub.putState(id, Buffer.from(JSON.stringify(prescription)))
-
-            // Create a new activity type 3 object
-            const activityId = generateUniqueID()
-            const activity = new Activity(activityId, new Date().toISOString().split('T')[0], id, pharmacistId, '3', null)
-            await ctx.stub.putState(activityId, Buffer.from(JSON.stringify(activity)))
-        } else if (parseInt(prescription.iterCount) === 1) {
-            // Reduce iterCount by 1
-            prescription.iterCount = '0'
-            await ctx.stub.putState(id, Buffer.from(JSON.stringify(prescription)))
-            // Complete the prescription
-            await this.completeRx(ctx, id, pharmacistId)
+  async getAllAssets(ctx) {
+    const allResults = []
+    // range query with empty string for startKey and endKey does an open-ended query of all assets in the chaincode namespace.
+    const iterator = await ctx.stub.getStateByRange('', '')
+    let result = await iterator.next()
+    while (!result.done) {
+        const strValue = Buffer.from(result.value.value.toString()).toString('utf8')
+        let record
+        try {
+            record = JSON.parse(strValue)
+        } catch (err) {
+            console.log(err)
+            record = strValue
         }
+        allResults.push(record)
+        result = await iterator.next()
+    }
+
+    return JSON.stringify(allResults, null, 2)
+}
+
+  async terminateRx(ctx, prescriptionId, terminatedAt, doctorId) {
+    const prescription = await this.getAssetObject(ctx, prescriptionId)
+    prescription.isValid = "0"
+    prescription.terminatedAt = terminatedAt
+    await ctx.stub.putState(prescriptionId, Buffer.from(JSON.stringify(prescription)))
+    
+    const activity = await this.createActivity(ctx, terminatedAt, prescriptionId, doctorId, "2")
+    await ctx.stub.putState(activity.activityId, Buffer.from(JSON.stringify(activity)))
+  }
+
+  async fillRx(ctx, prescriptionId, filledAt, pharmacistId) {
+    const prescription = await this.getAssetObject(ctx, prescriptionId)
+    // console.log(prescription.isIter)
+    // console.log(Number(prescription.isIter))
+    // console.log(Boolean(Number(prescription.isIter)))
+
+    if (Boolean(Number(prescription.isIter))) {
+      if (Number(prescription.iterCount) > 1) {
+        // console.log(prescription.iterCount)
+        prescription.iterCount = (Number(prescription.iterCount) - 1).toString()
+        // console.log(prescription.iterCount)
+        prescription.filledBy = pharmacistId
+        await ctx.stub.putState(prescriptionId, Buffer.from(JSON.stringify(prescription)))
+
+        const activity = await this.createActivity(ctx, filledAt, prescriptionId, pharmacistId, "3")
+        await ctx.stub.putState(activity.activityId, Buffer.from(JSON.stringify(activity)))
+      } else if (Number(prescription.iterCount) === 1) {
+        prescription.isIter = "0"
+        prescription.iterCount = "0"
+        
+        await this.completeRx(ctx, prescription, filledAt, pharmacistId)
+      }
     } else {
-        // If isIter is FALSE, complete the prescription
-        await this.completeRx(ctx, id, pharmacistId)
+      await this.completeRx(ctx, prescription, filledAt, pharmacistId)
     }
   }
 
-  async completeRx(ctx, id, pharmacistId) {
-    const prescription = await this.getRx(ctx, id)
-    prescription.isValid = false
+  async completeRx(ctx, prescription, filledAt, pharmacistId) {
+    prescription.isValid = "0"
+    prescription.terminatedAt = filledAt
     prescription.filledBy = pharmacistId
-    await ctx.stub.putState(id, Buffer.from(JSON.stringify(prescription)))
+    await ctx.stub.putState(prescription.prescriptionId, Buffer.from(JSON.stringify(prescription)))
 
-    const activityId = generateUniqueID()
-    const activity = new Activity(activityId, new Date().toISOString().split('T')[0], id, pharmacistId, '4', null)
-    await ctx.stub.putState(activityId, Buffer.from(JSON.stringify(activity)))
+    const activity = await this.createActivity(ctx, prescription.filledAt, prescription.prescriptionId, pharmacistId, "4")
+    await ctx.stub.putState(activity.activityId, Buffer.from(JSON.stringify(activity)))
   }
 
   // async createActivityHistory(ctx, prescriptionId) {
