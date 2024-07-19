@@ -1,1 +1,2 @@
-[34m2024-07-19 02:10:59.489 WIB 0001 INFO[0m [chaincodeCmd] [34;1mchaincodeInvokeOrQuery[0m -> Chaincode invoke successful. result: status:200 
+Committed chaincode definition for chaincode 'basic' on channel 'channel1':
+Version: 1.0, Sequence: 1, Endorsement Plugin: escc, Validation Plugin: vscc, Approvals: [Org1MSP: true, Org2MSP: true]

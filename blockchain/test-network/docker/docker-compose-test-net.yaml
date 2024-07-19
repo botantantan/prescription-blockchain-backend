@@ -12,6 +12,7 @@ volumes:
 
 networks:
   test:
+    name: rx_test
 
 services:
 

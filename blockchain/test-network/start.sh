@@ -7,9 +7,9 @@ docker network prune -f
 
 export COMPOSE_PROJECT_NAME=rx
 
-./network.sh up
-./network.sh createChannel -c channel1
-./deploy-cc.sh
+bash ./network.sh up
+bash ./network.sh createChannel -c channel1
+bash ./deploy-cc.sh
 
 docker ps -a
 
