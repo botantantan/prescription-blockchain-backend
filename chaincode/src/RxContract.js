@@ -1,34 +1,32 @@
 'use strict'
 
 const { Contract } = require('fabric-contract-api')
-const { Prescription, Activity, syntaxHighlight } = require('./util/util')
-
-const stringify  = require('json-stringify-deterministic');
-const sortKeysRecursive  = require('sort-keys-recursive');
+const { Prescription, Activity} = require('./utils/util')
 
 class RxContract extends Contract {
   constructor() {
     super("RxContract")
-    this.activityIdCounter = "1000"
+    this.activityIdCounter = "1"
+    // this.prescriptionIdCounter = "7"
   }
 
   async initLedger(ctx) {    
     const prescriptions = [
-      new Prescription("1", "2024-07-18,00:01", "1001", "2001", "1", "0", "0"),
-      new Prescription("2", "2024-07-18,00:10", "1002", "2002", "2", "0", "0"),
-      new Prescription("3", "2024-07-18,13:00", "1003", "2003", "3", "0", "0"),
-      new Prescription("4", "2024-07-18,25:00", "1004", "2004", "4", "1", "5"),
-      new Prescription("5", "2024-07-18,17:00", "1001", "2002", "5", "1", "3"),
-      new Prescription("6", "2024-07-18,22:00", "1006", "2006", "6", "1", "2")
+      new Prescription("rx-1", "2024-07-18,00:01", "1001", "2001", "1", "0", "0"),
+      new Prescription("rx-2", "2024-07-18,00:10", "1002", "2002", "2", "0", "0"),
+      new Prescription("rx-3", "2024-07-18,13:00", "1003", "2003", "3", "0", "0"),
+      new Prescription("rx-4", "2024-07-18,25:00", "1004", "2004", "4", "1", "5"),
+      new Prescription("rx-5", "2024-07-18,17:00", "1001", "2002", "5", "1", "3"),
+      new Prescription("rx-6", "2024-07-18,22:00", "1006", "2006", "6", "1", "2")
     ]
 
     for (const prescription of prescriptions) {
       await this.createRx(
         ctx,
         prescription.prescriptionId,
-        prescription.createdAt,
-        prescription.prescribedFor,
-        prescription.prescribedBy,
+        prescription.creationDate,
+        prescription.patientId,
+        prescription.doctorId,
         prescription.medicineId,
         prescription.isIter,
         prescription.iterCount)
@@ -54,7 +52,6 @@ class RxContract extends Contract {
     const strValue = JSON.parse(assetJSON.toString('utf8'))
     console.log(strValue)
 
-    // return JSON.stringify(strValue, null, 2)
     return strValue
   }
 
@@ -85,52 +82,53 @@ class RxContract extends Contract {
     return assetJSON && assetJSON.length > 0
   }
 
-  async createActivity(ctx, doneAt, prescriptionId, doerId, type) {
-    const activity = new Activity(this.activityIdCounter, doneAt, prescriptionId, doerId, type)
+  async createActivity(ctx, timestamp, prescriptionId, actorId, type) {
+    const activity = new Activity(`act-${this.activityIdCounter}`, timestamp, prescriptionId, actorId, type)
     this.activityIdCounter = (Number(this.activityIdCounter) + 1).toString()
 
     return activity
   }
 
-  async createRx(ctx, prescriptionId, createdAt, prescribedFor, prescribedBy, medicineId, isIter, iterCount) {
+  async createRx(ctx, prescriptionId, creationDate, patientId, doctorId, medicineId, isIter, iterCount) {
     const exists = await this.assetExist(ctx, prescriptionId)
     if (exists) {
-      throw new Error(`Asset: prescription-${prescriptionId} already exist`)
+      throw new Error(`Asset: ${prescriptionId} already exist`)
     }
 
-    const prescription = new Prescription(prescriptionId, createdAt, prescribedFor, prescribedBy, medicineId, isIter, iterCount)
-    await ctx.stub.putState(prescriptionId, Buffer.from(JSON.stringify(prescription)))
+    const prescription = new Prescription(prescriptionId, creationDate, patientId, doctorId, medicineId, isIter, iterCount)
+    // this.prescriptionIdCounter = (Number(this.prescriptionIdCounter) + 1).toString()
+    await ctx.stub.putState(prescription.prescriptionId, Buffer.from(JSON.stringify(prescription)))
 
-    const activity = await this.createActivity(ctx, createdAt, prescriptionId, prescribedBy, "1")
+    const activity = await this.createActivity(ctx, creationDate, prescriptionId, doctorId, "1")
     await ctx.stub.putState(activity.activityId, Buffer.from(JSON.stringify(activity)))
 
     return prescription
   }
 
-  async terminateRx(ctx, prescriptionId, terminatedAt, doctorId) {
+  async terminateRx(ctx, prescriptionId, terminationDate, doctorId) {
     const exists = await this.assetExist(ctx, prescriptionId)
     if (!exists) {
-      throw new Error(`Asset: prescription-${prescriptionId} does not exist`)
+      throw new Error(`Asset: ${prescriptionId} does not exist`)
     }
 
     const prescription = await this.getAssetObject(ctx, prescriptionId)
 
     if (Boolean(Number(prescription.isValid))) {
       prescription.isValid = "0"
-      prescription.terminatedAt = terminatedAt
+      prescription.terminationDate = terminationDate
       await ctx.stub.putState(prescriptionId, Buffer.from(JSON.stringify(prescription)))
       
-      const activity = await this.createActivity(ctx, terminatedAt, prescriptionId, doctorId, "2")
+      const activity = await this.createActivity(ctx, terminationDate, prescriptionId, doctorId, "2")
       await ctx.stub.putState(activity.activityId, Buffer.from(JSON.stringify(activity)))
     } else {
-      throw new Error(`Asset: prescription-${prescriptionId} has already been terminated/completed`)
+      throw new Error(`Asset: ${prescriptionId} has already been terminated/completed`)
     }
   }
 
-  async fillRx(ctx, prescriptionId, filledAt, pharmacistId) {
+  async fillRx(ctx, prescriptionId, filledDate, pharmacistId) {
     const exists = await this.assetExist(ctx, prescriptionId)
     if (!exists) {
-      throw new Error(`Asset: prescription-${prescriptionId} does not exist`)
+      throw new Error(`Asset: ${prescriptionId} does not exist`)
     }
     
     const prescription = await this.getAssetObject(ctx, prescriptionId)
@@ -139,32 +137,32 @@ class RxContract extends Contract {
       if (Boolean(Number(prescription.isIter))) {
         if (Number(prescription.iterCount) > 1) {
           prescription.iterCount = (Number(prescription.iterCount) - 1).toString()
-          prescription.filledBy = pharmacistId
+          prescription.pharmacistId = pharmacistId
           await ctx.stub.putState(prescriptionId, Buffer.from(JSON.stringify(prescription)))
   
-          const activity = await this.createActivity(ctx, filledAt, prescriptionId, pharmacistId, "3")
+          const activity = await this.createActivity(ctx, filledDate, prescriptionId, pharmacistId, "3")
           await ctx.stub.putState(activity.activityId, Buffer.from(JSON.stringify(activity)))
         } else if (Number(prescription.iterCount) === 1) {
           prescription.isIter = "0"
           prescription.iterCount = "0"
           
-          await this.completeRx(ctx, prescription, filledAt, pharmacistId)
+          await this.completeRx(ctx, prescription, filledDate, pharmacistId)
         }
       } else {
-        await this.completeRx(ctx, prescription, filledAt, pharmacistId)
+        await this.completeRx(ctx, prescription, filledDate, pharmacistId)
       }
     } else {
-      throw new Error(`Asset: prescription-${prescriptionId} has already been terminated/completed`)
+      throw new Error(`Asset: ${prescriptionId} has already been terminated/completed`)
     }
   }
 
-  async completeRx(ctx, prescription, filledAt, pharmacistId) {
+  async completeRx(ctx, prescription, filledDate, pharmacistId) {
     prescription.isValid = "0"
-    prescription.terminatedAt = filledAt
-    prescription.filledBy = pharmacistId
+    prescription.terminationDate = filledDate
+    prescription.pharmacistId = pharmacistId
     await ctx.stub.putState(prescription.prescriptionId, Buffer.from(JSON.stringify(prescription)))
 
-    const activity = await this.createActivity(ctx, prescription.filledAt, prescription.prescriptionId, pharmacistId, "4")
+    const activity = await this.createActivity(ctx, filledDate, prescription.prescriptionId, pharmacistId, "4")
     await ctx.stub.putState(activity.activityId, Buffer.from(JSON.stringify(activity)))
   }
 

@@ -12,7 +12,6 @@ BLOCK_NUMBER=$2
 BLOCK_NAME=$3
 JSON_NAME=$4
 
-
 setGlobals $ORG
 set -x
 

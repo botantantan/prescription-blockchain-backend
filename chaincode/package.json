@@ -1,12 +1,12 @@
 {
-  "name": "chaincode",
+  "name": "prescription-blockchain-chaincode",
   "version": "1.0.0",
-  "description": "tubuh kristus",
+  "description": "hyperledger fabric chaincode using nodejs",
   "main": "index.js",
   "scripts": {
     "start": "fabric-chaincode-node start"
   },
-  "author": "tuhan",
+  "author": "frutz",
   "license": "ISC",
   "dependencies": {
     "fabric-contract-api": "~2.5",
