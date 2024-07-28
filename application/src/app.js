@@ -219,13 +219,14 @@ async function createRx(contract) {
     }
 }
 
+// prescriptionId, terminatedAt, doctorId
 async function terminateRx(contract) {
     console.log('\n--> Submit Transaction, terminateRx')
 
     try {
         await contract.submitTransaction(
             'terminateRx',
-            rxIdCounter,
+            '5',
             timestamp,
             '2030'
         )
@@ -237,6 +238,7 @@ async function terminateRx(contract) {
     }
 }
 
+// prescriptionId, filledAt, pharmacistId
 async function fillRx(contract) {
     console.log('\n--> Submit Transaction, fillRx')
 

@@ -38,7 +38,7 @@ class RxContract extends Contract {
   async getAssetObject(ctx, assetId) {
     const assetJSON = await ctx.stub.getState(assetId)
     if (!assetJSON || assetJSON.length === 0) {
-        throw new Error(`Asset ${assetId} does not exist`)
+        throw new Error(`Asset: ${assetId} does not exist`)
     }
     
     return JSON.parse(assetJSON.toString()) // object
@@ -48,7 +48,7 @@ class RxContract extends Contract {
   async getAsset(ctx, assetId) {
     const assetJSON = await ctx.stub.getState(assetId) // get the asset from chaincode state
     if (!assetJSON || assetJSON.length === 0) {
-        throw new Error(`The asset ${assetId} does not exist`)
+        throw new Error(`Asset: ${assetId} does not exist`)
     }
     console.log(assetJSON)
     const strValue = JSON.parse(assetJSON.toString('utf8'))
@@ -95,7 +95,7 @@ class RxContract extends Contract {
   async createRx(ctx, prescriptionId, createdAt, prescribedFor, prescribedBy, medicineId, isIter, iterCount) {
     const exists = await this.assetExist(ctx, prescriptionId)
     if (exists) {
-      throw new Error(`The asset ${prescriptionId} already exist`)
+      throw new Error(`Asset: prescription-${prescriptionId} already exist`)
     }
 
     const prescription = new Prescription(prescriptionId, createdAt, prescribedFor, prescribedBy, medicineId, isIter, iterCount)
@@ -110,7 +110,7 @@ class RxContract extends Contract {
   async terminateRx(ctx, prescriptionId, terminatedAt, doctorId) {
     const exists = await this.assetExist(ctx, prescriptionId)
     if (!exists) {
-      throw new Error(`The asset ${prescriptionId} don't exist`)
+      throw new Error(`Asset: prescription-${prescriptionId} does not exist`)
     }
 
     const prescription = await this.getAssetObject(ctx, prescriptionId)
@@ -123,14 +123,14 @@ class RxContract extends Contract {
       const activity = await this.createActivity(ctx, terminatedAt, prescriptionId, doctorId, "2")
       await ctx.stub.putState(activity.activityId, Buffer.from(JSON.stringify(activity)))
     } else {
-      throw new Error(`The asset ${prescriptionId} is already terminated`)
+      throw new Error(`Asset: prescription-${prescriptionId} has already been terminated/completed`)
     }
   }
 
   async fillRx(ctx, prescriptionId, filledAt, pharmacistId) {
     const exists = await this.assetExist(ctx, prescriptionId)
     if (!exists) {
-      throw new Error(`The asset ${prescriptionId} don't exist`)
+      throw new Error(`Asset: prescription-${prescriptionId} does not exist`)
     }
     
     const prescription = await this.getAssetObject(ctx, prescriptionId)
@@ -154,7 +154,7 @@ class RxContract extends Contract {
         await this.completeRx(ctx, prescription, filledAt, pharmacistId)
       }
     } else {
-      throw new Error(`The asset ${prescriptionId} is already terminated`)
+      throw new Error(`Asset: prescription-${prescriptionId} has already been terminated/completed`)
     }
   }
 
