@@ -10,7 +10,7 @@ class RxContract extends Contract {
     // this.prescriptionIdCounter = "7"
   }
 
-  async initLedger(ctx) {    
+  async initLedger(ctx) {
     const prescriptions = [
       new Prescription("rx-1", "2024-07-18,00:01", "1001", "2001", "1", "0", "0"),
       new Prescription("rx-2", "2024-07-18,00:10", "1002", "2002", "2", "0", "0"),
@@ -38,7 +38,7 @@ class RxContract extends Contract {
     if (!assetJSON || assetJSON.length === 0) {
         throw new Error(`Asset: ${assetId} does not exist`)
     }
-    
+
     return JSON.parse(assetJSON.toString()) // object
   }
 
@@ -117,7 +117,7 @@ class RxContract extends Contract {
       prescription.isValid = "0"
       prescription.terminationDate = terminationDate
       await ctx.stub.putState(prescriptionId, Buffer.from(JSON.stringify(prescription)))
-      
+
       const activity = await this.createActivity(ctx, terminationDate, prescriptionId, doctorId, "2")
       await ctx.stub.putState(activity.activityId, Buffer.from(JSON.stringify(activity)))
     } else {
@@ -130,7 +130,7 @@ class RxContract extends Contract {
     if (!exists) {
       throw new Error(`Asset: ${prescriptionId} does not exist`)
     }
-    
+
     const prescription = await this.getAssetObject(ctx, prescriptionId)
 
     if (Boolean(Number(prescription.isValid))) {
@@ -139,13 +139,13 @@ class RxContract extends Contract {
           prescription.iterCount = (Number(prescription.iterCount) - 1).toString()
           prescription.pharmacistId = pharmacistId
           await ctx.stub.putState(prescriptionId, Buffer.from(JSON.stringify(prescription)))
-  
+
           const activity = await this.createActivity(ctx, filledDate, prescriptionId, pharmacistId, "3")
           await ctx.stub.putState(activity.activityId, Buffer.from(JSON.stringify(activity)))
         } else if (Number(prescription.iterCount) === 1) {
           prescription.isIter = "0"
           prescription.iterCount = "0"
-          
+
           await this.completeRx(ctx, prescription, filledDate, pharmacistId)
         }
       } else {
