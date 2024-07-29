@@ -1,6 +1,5 @@
-
 # SPDX-License-Identifier: Apache-2.0
-version: '2.1'
+version: "2.1"
 
 volumes:
   pgdata:
@@ -12,7 +11,6 @@ networks:
       name: rx_test
 
 services:
-
   explorerdb.mynetwork.com:
     image: ghcr.io/hyperledger-labs/explorer-db:latest
     container_name: explorerdb.mynetwork.com

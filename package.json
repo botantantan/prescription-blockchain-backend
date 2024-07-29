@@ -1,21 +1,21 @@
 {
-    "name": "prescription-blockchain-backend",
-    "version": "1.0.0",
-    "description": "hyperledger fabric backend using express",
-    "main": "src/app.js",
-    "engines": {
-        "node": ">=18"
-    },
-    "scripts": {
-        "start": "node src/app.js"
-    },
-    "engineStrict": true,
-    "author": "frotz",
-    "license": "Apache-2.0",
-    "dependencies": {
-        "express": "^4.17.1",
-        "cors": "^2.8.5",
-        "@grpc/grpc-js": "^1.10",
-        "@hyperledger/fabric-gateway": "^1.5"
-    }
+  "name": "prescription-blockchain-backend",
+  "version": "1.0.0",
+  "description": "hyperledger fabric backend using express",
+  "main": "src/app.js",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "start": "node src/app.js"
+  },
+  "engineStrict": true,
+  "author": "frotz",
+  "license": "Apache-2.0",
+  "dependencies": {
+    "express": "^4.17.1",
+    "cors": "^2.8.5",
+    "@grpc/grpc-js": "^1.10",
+    "@hyperledger/fabric-gateway": "^1.5"
+  }
 }

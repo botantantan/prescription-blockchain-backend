@@ -50,7 +50,7 @@ NONWORKING_VERSIONS="^1\.0\. ^1\.1\. ^1\.2\. ^1\.3\. ^1\.4\."
 # of go or other items could be added.
 function checkPrereqs() {
   ## Check if your have cloned the peer binaries and configuration files.
-  peer version > /dev/null 2>&1
+  peer version >/dev/null 2>&1
 
   if [[ $? -ne 0 || ! -d "../config" ]]; then
     errorln "Peer binary and configuration files not found.."
@@ -86,7 +86,7 @@ function checkPrereqs() {
   ## Check for fabric-ca
   if [ "$CRYPTO" == "Certificate Authorities" ]; then
 
-    fabric-ca-client version > /dev/null 2>&1
+    fabric-ca-client version >/dev/null 2>&1
     if [[ $? -ne 0 ]]; then
       errorln "fabric-ca-client binary not found.."
       errorln
@@ -183,8 +183,7 @@ function createOrgs() {
 
     . organizations/fabric-ca/registerEnroll.sh
 
-  while :
-    do
+    while :; do
       if [ ! -f "organizations/fabric-ca/org1/tls-cert.pem" ]; then
         sleep 1
       else
@@ -312,7 +311,6 @@ function createChannel() {
   scripts/createChannel.sh $CHANNEL_NAME $CLI_DELAY $MAX_RETRY $VERBOSE
 }
 
-
 ## Call the script to deploy a chaincode to the channel
 function deployCC() {
   scripts/deployCC.sh $CHANNEL_NAME $CC_NAME $CC_SRC_PATH $CC_SRC_LANGUAGE $CC_VERSION $CC_SEQUENCE $CC_INIT_FCN $CC_END_POLICY $CC_COLL_CONFIG $CLI_DELAY $MAX_RETRY $VERBOSE
@@ -321,7 +319,6 @@ function deployCC() {
     fatalln "Deploying chaincode failed"
   fi
 }
-
 
 # Tear down running network
 function networkDown() {
@@ -403,7 +400,7 @@ DATABASE="leveldb"
 # Parse commandline args
 
 ## Parse mode
-if [[ $# -lt 1 ]] ; then
+if [[ $# -lt 1 ]]; then
   printHelp
   exit 0
 else
@@ -412,87 +409,87 @@ else
 fi
 
 # parse a createChannel subcommand if used
-if [[ $# -ge 1 ]] ; then
+if [[ $# -ge 1 ]]; then
   key="$1"
   if [[ "$key" == "createChannel" ]]; then
-      export MODE="createChannel"
-      shift
+    export MODE="createChannel"
+    shift
   fi
 fi
 
 # parse flags
 
-while [[ $# -ge 1 ]] ; do
+while [[ $# -ge 1 ]]; do
   key="$1"
   case $key in
-  -h )
+  -h)
     printHelp $MODE
     exit 0
     ;;
-  -c )
+  -c)
     CHANNEL_NAME="$2"
     shift
     ;;
-  -ca )
+  -ca)
     CRYPTO="Certificate Authorities"
     ;;
-  -r )
+  -r)
     MAX_RETRY="$2"
     shift
     ;;
-  -d )
+  -d)
     CLI_DELAY="$2"
     shift
     ;;
-  -s )
+  -s)
     DATABASE="$2"
     shift
     ;;
-  -ccl )
+  -ccl)
     CC_SRC_LANGUAGE="$2"
     shift
     ;;
-  -ccn )
+  -ccn)
     CC_NAME="$2"
     shift
     ;;
-  -ccv )
+  -ccv)
     CC_VERSION="$2"
     shift
     ;;
-  -ccs )
+  -ccs)
     CC_SEQUENCE="$2"
     shift
     ;;
-  -ccp )
+  -ccp)
     CC_SRC_PATH="$2"
     shift
     ;;
-  -ccep )
+  -ccep)
     CC_END_POLICY="$2"
     shift
     ;;
-  -cccg )
+  -cccg)
     CC_COLL_CONFIG="$2"
     shift
     ;;
-  -cci )
+  -cci)
     CC_INIT_FCN="$2"
     shift
     ;;
-  -i )
+  -i)
     IMAGETAG="$2"
     shift
     ;;
-  -cai )
+  -cai)
     CA_IMAGETAG="$2"
     shift
     ;;
-  -verbose )
+  -verbose)
     VERBOSE=true
     shift
     ;;
-  * )
+  *)
     errorln "Unknown flag: $key"
     printHelp
     exit 1

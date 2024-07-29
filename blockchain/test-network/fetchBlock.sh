@@ -18,5 +18,5 @@ set -x
 peer channel fetch $BLOCK_NUMBER ./tx-block/$BLOCK_NAME -o localhost:7050 --ordererTLSHostnameOverride orderer.example.com -c $CHANNEL_NAME --tls --cafile $ORDERER_CA
 configtxlator proto_decode --input ./tx-block/$BLOCK_NAME --type=common.Block --output ./tx-block/$JSON_NAME
 
-{ set +x; } 2> /dev/null
+{ set +x; } 2>/dev/null
 cat log.txt
