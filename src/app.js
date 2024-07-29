@@ -135,28 +135,6 @@ app.post('/api/createRx', async (req, res) => {
     }
 });
 
-// async function createRx(contract) {
-//     console.log('\n--> Submit Transaction, createRx')
-
-//     try {
-//         await contract.submitTransaction(
-//             'createRx',
-//             rxIdCounter,
-//             timestamp,
-//             '1020',
-//             '2006',
-//             '15',
-//             '1',
-//             '4'
-//         )
-        
-//         rxIdCounter = (Number(rxIdCounter) + 1).toString()
-//         console.log('*** Transaction committed successfully')
-//     } catch (error) {
-//         console.log('*** Caught an error, \n', error)
-//     }
-// }
-
 app.post('/api/terminateRx', async (req, res) => {
     const { prescriptionId, terminationDate, doctorId } = req.body;
     try {
@@ -170,24 +148,6 @@ app.post('/api/terminateRx', async (req, res) => {
     }
 });
 
-// async function terminateRx(contract) {
-//     console.log('\n--> Submit Transaction, terminateRx')
-
-//     try {
-//         await contract.submitTransaction(
-//             'terminateRx',
-//             '5',
-//             timestamp,
-//             '2030'
-//         )
-
-//         rxIdCounter = (Number(rxIdCounter) + 1).toString()
-//         console.log('*** Transaction committed successfully')
-//     } catch (error) {
-//         console.log('*** Caught an error, \n', error)
-//     }
-// }
-
 app.post('/api/fillRx', async (req, res) => {
     const { prescriptionId, filledDate, pharmacistId } = req.body;
     try {
@@ -200,25 +160,6 @@ app.post('/api/fillRx', async (req, res) => {
         res.status(500).send(error.toString());
     }
 });
-
-// async function fillRx(contract) {
-//     console.log('\n--> Submit Transaction, fillRx')
-
-//     try {
-//         await contract.submitTransaction(
-//             'fillRx',
-//             '4',
-//             timestamp,
-//             '3001'
-//         )
-
-//         rxIdCounter = (Number(rxIdCounter) + 1).toString()
-//         console.log('*** Transaction committed successfully')
-//     } catch (error) {
-//         console.log('*** Caught an error \n', error)
-//     }
-// }
-
 
 app.listen(port, () => {
     console.log(`Server is running on port ${port}`);

@@ -7,7 +7,6 @@ class RxContract extends Contract {
   constructor() {
     super("RxContract")
     this.activityIdCounter = "1"
-    // this.prescriptionIdCounter = "7"
   }
 
   async initLedger(ctx) {
