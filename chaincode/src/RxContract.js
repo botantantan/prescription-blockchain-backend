@@ -90,22 +90,16 @@ class RxContract extends Contract {
     return JSON.parse(assetJSON.toString()); // object
   }
 
-  // getAsset returns the asset stored in the world state with given id.
   async getAsset(ctx, assetId) {
-    const assetJSON = await ctx.stub.getState(assetId); // get the asset from chaincode state
+    const assetJSON = await ctx.stub.getState(assetId);
     if (!assetJSON || assetJSON.length === 0) {
       throw new Error(`Asset: ${assetId} does not exist`);
     }
-    console.log(assetJSON);
-    const strValue = JSON.parse(assetJSON.toString("utf8"));
-    console.log(strValue);
-
-    return strValue;
+    return JSON.parse(assetJSON.toString());
   }
 
   async getAllAssets(ctx) {
     const allResults = [];
-    // range query with empty string for startKey and endKey does an open-ended query of all assets in the chaincode namespace.
     const iterator = await ctx.stub.getStateByRange("", "");
     let result = await iterator.next();
     while (!result.done) {
@@ -126,7 +120,6 @@ class RxContract extends Contract {
     return JSON.stringify(allResults, null, 2);
   }
 
-  // AssetExists returns true when asset with given ID exists in world state.
   async assetExist(ctx, assetId) {
     const assetJSON = await ctx.stub.getState(assetId);
     return assetJSON && assetJSON.length > 0;
@@ -149,29 +142,34 @@ class RxContract extends Contract {
       type,
       parentId
     );
+    activity.docType = "activity";
     this.activityIdCounter = (Number(this.activityIdCounter) + 1).toString();
 
     return activity;
   }
 
-  // get parentId if exist else null
   async getParentId(ctx, prescriptionId) {
-    const queryString = JSON.stringify({
-      selector: {
-        docType: "activity",
-        prescriptionId,
-      },
-      sort: [{ timestamp: "desc" }],
-      limit: 1,
-    });
-
-    const iterator = await ctx.stub.getQueryResult(queryString);
-    const result = await iterator.next();
-    if (result.value) {
-      const activity = JSON.parse(result.value.value.toString("utf8"));
-      return activity.activityId;
+    const allResults = [];
+    const iterator = await ctx.stub.getStateByRange("", "");
+    let result = await iterator.next();
+    while (!result.done) {
+      const strValue = Buffer.from(result.value.value.toString()).toString(
+        "utf8"
+      );
+      let record;
+      try {
+        record = JSON.parse(strValue);
+      } catch (err) {
+        console.log(err);
+        record = strValue;
+      }
+      if (record.prescriptionId === prescriptionId && record.docType === "activity") {
+        allResults.push(record);
+      }
+      result = await iterator.next();
     }
-    return null;
+    allResults.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+    return allResults.length > 0 ? allResults[0].activityId : null;
   }
 
   async createRx(
@@ -328,26 +326,27 @@ class RxContract extends Contract {
   }
 
   async getRxHistory(ctx, prescriptionId) {
-    const query = {
-      selector: {
-        docType: "activity",
-        prescriptionId,
-      },
-      sort: [{ timestamp: "asc" }],
-    };
-
-    const iterator = await ctx.stub.getQueryResult(JSON.stringify(query));
-    const activities = [];
-    while (true) {
-      const result = await iterator.next();
-      if (result.done) {
-        break;
+    const allResults = [];
+    const iterator = await ctx.stub.getStateByRange("", "");
+    let result = await iterator.next();
+    while (!result.done) {
+      const strValue = Buffer.from(result.value.value.toString()).toString(
+        "utf8"
+      );
+      let record;
+      try {
+        record = JSON.parse(strValue);
+      } catch (err) {
+        console.log(err);
+        record = strValue;
       }
-      const activity = result.value.value.toString("utf8");
-      activities.push(JSON.parse(activity));
+      if (record.prescriptionId === prescriptionId && record.docType === "activity") {
+        allResults.push(record);
+      }
+      result = await iterator.next();
     }
-
-    return JSON.stringify(activities);
+    allResults.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+    return JSON.stringify(allResults);
   }
 }
 
