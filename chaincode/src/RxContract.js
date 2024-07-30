@@ -13,7 +13,7 @@ class RxContract extends Contract {
     const prescriptions = [
       new Prescription(
         "rx-1",
-        "2024-07-18,00:01",
+        "2024-07-30,00:00:00.000",
         "1001",
         "2001",
         "1",
@@ -22,7 +22,7 @@ class RxContract extends Contract {
       ),
       new Prescription(
         "rx-2",
-        "2024-07-18,00:10",
+        "2024-07-30,00:10:00.000",
         "1002",
         "2002",
         "2",
@@ -31,7 +31,7 @@ class RxContract extends Contract {
       ),
       new Prescription(
         "rx-3",
-        "2024-07-18,13:00",
+        "2024-07-30,13:00:00.000",
         "1003",
         "2003",
         "3",
@@ -40,7 +40,7 @@ class RxContract extends Contract {
       ),
       new Prescription(
         "rx-4",
-        "2024-07-18,25:00",
+        "2024-07-30,25:00:00.000",
         "1004",
         "2004",
         "4",
@@ -49,7 +49,7 @@ class RxContract extends Contract {
       ),
       new Prescription(
         "rx-5",
-        "2024-07-18,17:00",
+        "2024-07-30,17:00:00.000",
         "1001",
         "2002",
         "5",
@@ -58,7 +58,7 @@ class RxContract extends Contract {
       ),
       new Prescription(
         "rx-6",
-        "2024-07-18,22:00",
+        "2024-07-30,22:00:00.000",
         "1006",
         "2006",
         "6",
@@ -142,7 +142,6 @@ class RxContract extends Contract {
       type,
       parentId
     );
-    activity.docType = "activity";
     this.activityIdCounter = (Number(this.activityIdCounter) + 1).toString();
 
     return activity;
