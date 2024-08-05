@@ -1,60 +1,61 @@
-"use strict";
+'use strict'
 
-const express = require("express");
-const cors = require("cors");
-const grpc = require("@grpc/grpc-js");
-const { connect, signers } = require("@hyperledger/fabric-gateway");
-const crypto = require("node:crypto");
-const fs = require("node:fs/promises");
-const path = require("node:path");
-const { TextDecoder } = require("node:util");
+const express = require('express');
+const cors = require('cors');
+const jwt = require('jsonwebtoken');
+const grpc = require('@grpc/grpc-js');
+const { connect, signers } = require('@hyperledger/fabric-gateway');
+const crypto = require('node:crypto');
+const fs = require('node:fs/promises');
+const path = require('node:path');
+const { TextDecoder } = require('node:util');
+// require('dotenv').config({ path: process.env.ENV_PATH || '.env' });
 
 const app = express();
 const port = 3000;
+const secretKey = envOrDefault('SECRET_KEY', 'your-secret-key');
 
 app.use(cors());
 app.use(express.json());
 
-const channelName = envOrDefault("CHANNEL_NAME", "channel1");
-const chaincodeName = envOrDefault("CHAINCODE_NAME", "basic");
-const mspId = envOrDefault("MSP_ID", "Org1MSP");
+const channelName = envOrDefault('CHANNEL_NAME', 'channel1');
+const chaincodeName = envOrDefault('CHAINCODE_NAME', 'basic');
+const mspId = envOrDefault('MSP_ID', 'Org1MSP');
 
 const cryptoPath = envOrDefault(
-  "CRYPTO_PATH",
+  'CRYPTO_PATH',
   path.resolve(
     __dirname,
-    "..",
-    "blockchain",
-    "test-network",
-    "organizations",
-    "peerOrganizations",
-    "org1.example.com"
+    '..',
+    'blockchain',
+    'test-network',
+    'organizations',
+    'peerOrganizations',
+    'org1.example.com'
   )
 );
 const keyDirectoryPath = envOrDefault(
-  "KEY_DIRECTORY_PATH",
-  path.resolve(cryptoPath, "users", "User1@org1.example.com", "msp", "keystore")
+  'KEY_DIRECTORY_PATH',
+  path.resolve(cryptoPath, 'users', 'User1@org1.example.com', 'msp', 'keystore')
 );
 const certDirectoryPath = envOrDefault(
-  "CERT_DIRECTORY_PATH",
+  'CERT_DIRECTORY_PATH',
   path.resolve(
     cryptoPath,
-    "users",
-    "User1@org1.example.com",
-    "msp",
-    "signcerts"
+    'users',
+    'User1@org1.example.com',
+    'msp', 'signcerts'
   )
 );
 const tlsCertPath = envOrDefault(
-  "TLS_CERT_PATH",
-  path.resolve(cryptoPath, "peers", "peer0.org1.example.com", "tls", "ca.crt")
+  'TLS_CERT_PATH',
+  path.resolve(cryptoPath, 'peers', 'peer0.org1.example.com', 'tls', 'ca.crt')
 );
-const peerEndpoint = envOrDefault("PEER_ENDPOINT", "localhost:7051");
-const peerHostAlias = envOrDefault("PEER_HOST_ALIAS", "peer0.org1.example.com");
+const peerEndpoint = envOrDefault('PEER_ENDPOINT', 'localhost:7051');
+const peerHostAlias = envOrDefault('PEER_HOST_ALIAS', 'peer0.org1.example.com');
 
 const utf8Decoder = new TextDecoder();
 
-// get file name
 async function getFirstDirFileName(dirPath) {
   const files = await fs.readdir(dirPath);
   const file = files[0];
@@ -68,23 +69,20 @@ function envOrDefault(key, defaultValue) {
   return process.env[key] || defaultValue;
 }
 
-// create new grpc connection
 async function newGrpcConnection() {
   const tlsRootCert = await fs.readFile(tlsCertPath);
   const tlsCredentials = grpc.credentials.createSsl(tlsRootCert);
   return new grpc.Client(peerEndpoint, tlsCredentials, {
-    "grpc.ssl_target_name_override": peerHostAlias,
+    'grpc.ssl_target_name_override': peerHostAlias,
   });
 }
 
-// create new client identity
 async function newIdentity() {
   const certPath = await getFirstDirFileName(certDirectoryPath);
   const credentials = await fs.readFile(certPath);
   return { mspId, credentials };
 }
 
-// create new signing implementation
 async function newSigner() {
   const keyPath = await getFirstDirFileName(keyDirectoryPath);
   const privateKeyPem = await fs.readFile(keyPath);
@@ -116,39 +114,115 @@ async function connectToGateway() {
   });
 
   const network = gateway.getNetwork(channelName);
-  const contract = network.getContract(chaincodeName, "RxContract");
+  const contract = network.getContract(chaincodeName, 'RxContract');
 
   return { gateway, contract };
 }
 
-// Endpoint
-app.post("/api/initLedger", async (req, res) => {
+// Authenticate user
+async function authenticateUser(username, password) {
+  const { gateway, contract } = await connectToGateway();
+  const resultBytes = await contract.evaluateTransaction('getAllAssets');
+  const resultJson = utf8Decoder.decode(resultBytes);
+  const assets = JSON.parse(resultJson);
+  gateway.close();
+
+  const user = assets.find(
+    (asset) => asset.docType === 'user' && asset.username === username && asset.password === password
+  );
+
+  if (!user) {
+    throw new Error('Invalid username or password');
+  }
+
+  const token = jwt.sign({ userId: user.userId, role: user.role }, secretKey, { expiresIn: '1h' });
+  return { token, userId: user.userId, role: user.role }; // Return user info
+}
+
+// Middleware to authenticate token
+function authenticateToken(req, res, next) {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+
+  if (!token) return res.sendStatus(401);
+
+  jwt.verify(token, secretKey, (err, user) => {
+    if (err) return res.sendStatus(403);
+    req.user = user;
+    next();
+  });
+}
+
+// Endpoint to authenticate user
+app.post('/api/login', async (req, res) => {
+  const { username, password } = req.body;
+
+  try {
+    const { token, userId, role } = await authenticateUser(username, password);
+    res.json({ token, userId, role });
+  } catch (error) {
+    console.error(`Failed to authenticate user: ${error}`);
+    res.status(401).send('Invalid username or password');
+  }
+});
+
+// Endpoint to initialize ledger
+app.post('/api/initLedger', async (req, res) => {
   try {
     const { gateway, contract } = await connectToGateway();
-    await contract.submitTransaction("initLedger");
+    await contract.submitTransaction('initLedger');
     gateway.close();
-    res.send("Ledger initialized successfully");
+    res.send('Ledger initialized successfully');
   } catch (error) {
     console.error(`Failed to initialize ledger: ${error}`);
     res.status(500).send(error.toString());
   }
 });
 
-app.get("/api/getAllAssets", async (req, res) => {
+// Endpoint to get all assets
+app.get('/api/getAllAssets', authenticateToken, async (req, res) => {
   try {
+    const { userId, role } = req.user;
     const { gateway, contract } = await connectToGateway();
-    const resultBytes = await contract.evaluateTransaction("getAllAssets");
+    const resultBytes = await contract.evaluateTransaction('getAllAssets');
     const resultJson = utf8Decoder.decode(resultBytes);
-    const result = JSON.parse(resultJson);
+    const assets = JSON.parse(resultJson);
     gateway.close();
-    res.json(result);
+
+    let filteredAssets;
+    if (role === 'patient') {
+      filteredAssets = assets.filter((asset) => asset.patientId === userId);
+    } else {
+      filteredAssets = assets;
+    }
+
+    res.json(filteredAssets);
+
+    // res.json(assets)
   } catch (error) {
     console.error(`Failed to get all assets: ${error}`);
     res.status(500).send(error.toString());
   }
 });
 
-app.post("/api/createRx", async (req, res) => {
+app.get('/api/getAllMedicines', authenticateToken, async (req, res) => {
+  try {
+    const { gateway, contract } = await connectToGateway();
+    const resultBytes = await contract.evaluateTransaction('getAllAssets');
+    const resultJson = utf8Decoder.decode(resultBytes);
+    const assets = JSON.parse(resultJson);
+    gateway.close();
+
+    const medicines = assets.filter((asset) => asset.docType === 'medicine');
+    res.json(medicines);
+  } catch (error) {
+    console.error(`Failed to get all medicines: ${error}`);
+    res.status(500).send(error.toString());
+  }
+});
+
+// Endpoint to create prescription
+app.post('/api/createRx', async (req, res) => {
   const {
     prescriptionId,
     creationDate,
@@ -158,10 +232,11 @@ app.post("/api/createRx", async (req, res) => {
     isIter,
     iterCount,
   } = req.body;
+
   try {
     const { gateway, contract } = await connectToGateway();
     await contract.submitTransaction(
-      "createRx",
+      'createRx',
       prescriptionId,
       creationDate,
       patientId,
@@ -171,55 +246,60 @@ app.post("/api/createRx", async (req, res) => {
       iterCount
     );
     gateway.close();
-    res.send("Prescription created successfully");
+    res.send('Prescription created successfully');
   } catch (error) {
     console.error(`Failed to create prescription: ${error}`);
     res.status(500).send(error.toString());
   }
 });
 
-app.post("/api/terminateRx", async (req, res) => {
+// Endpoint to terminate prescription
+app.post('/api/terminateRx', async (req, res) => {
   const { prescriptionId, terminationDate, doctorId } = req.body;
+
   try {
     const { gateway, contract } = await connectToGateway();
     await contract.submitTransaction(
-      "terminateRx",
+      'terminateRx',
       prescriptionId,
       terminationDate,
       doctorId
     );
     gateway.close();
-    res.send("Prescription terminated successfully");
+    res.send('Prescription terminated successfully');
   } catch (error) {
     console.error(`Failed to terminate prescription: ${error}`);
     res.status(500).send(error.toString());
   }
 });
 
-app.post("/api/fillRx", async (req, res) => {
+// Endpoint to fill prescription
+app.post('/api/fillRx', async (req, res) => {
   const { prescriptionId, filledDate, pharmacistId } = req.body;
+
   try {
     const { gateway, contract } = await connectToGateway();
     await contract.submitTransaction(
-      "fillRx",
+      'fillRx',
       prescriptionId,
       filledDate,
       pharmacistId
     );
     gateway.close();
-    res.send("Prescription filled successfully");
+    res.send('Prescription filled successfully');
   } catch (error) {
     console.error(`Failed to fill prescription: ${error}`);
     res.status(500).send(error.toString());
   }
 });
 
-app.get("/api/getRxHistory/:prescriptionId", async (req, res) => {
+// Endpoint to get prescription history
+app.get('/api/getRxHistory/:prescriptionId', async (req, res) => {
   try {
     const { prescriptionId } = req.params;
     const { gateway, contract } = await connectToGateway();
     const resultBytes = await contract.evaluateTransaction(
-      "getRxHistory",
+      'getRxHistory',
       prescriptionId
     );
     const resultJson = utf8Decoder.decode(resultBytes);

@@ -1,7 +1,7 @@
 "use strict";
 
 const { Contract } = require("fabric-contract-api");
-const { Prescription, Activity } = require("./utils/util");
+const { Prescription, Activity, User, Medicine } = require("./utils/util");
 
 class RxContract extends Contract {
   constructor() {
@@ -10,61 +10,51 @@ class RxContract extends Contract {
   }
 
   async initLedger(ctx) {
+    const users = [
+      new User("user-0", "admin", "pass", "admin"),
+      new User("user-1", "patient1", "pass", "patient"),
+      new User("user-2", "patient2", "pass", "patient"),
+      new User("user-3", "patient3", "pass", "patient"),
+      new User("user-4", "doctor1", "pass", "doctor"),
+      new User("user-5", "doctor2", "pass", "doctor"),
+      new User("user-6", "pharmacist1", "pass", "pharmacist"),
+      new User("user-7", "pharmacist2", "pass", "pharmacist"),
+    ];
+
+    for (const user of users) {
+      await ctx.stub.putState(
+        user.userId,
+        Buffer.from(JSON.stringify(user))
+      );
+    }
+
+    const medicines = [
+      new Medicine("med-1", "paracetamol", "obat mujarab", "200 mg"),
+      new Medicine("med-2", "paracetamol", "obat mujarab", "100 mg"),
+      new Medicine("med-3", "minoxidil", "obat tampan", "100 amp"),
+      new Medicine("med-4", "betadine", "obat alergi", "1000 gram"),
+      new Medicine("med-5", "viagra", "obat kanker", "100 mg"),
+      new Medicine("med-6", "viagra", "obat kanker", "10 mg"),
+      new Medicine("med-7", "ibuprofen", "obat sakit", "100 mg"),
+      new Medicine("med-8", "lisinopril", "obat darah tinggi", "100 mg"),
+      new Medicine("med-9", "penicilin", "obat aids", "100 mg"),
+      new Medicine("med-10", "aptx-4869", "obat anak kecil", "10000 mg")
+    ];
+
+    for (const medicine of medicines) {
+      await ctx.stub.putState(
+        medicine.medicineId,
+        Buffer.from(JSON.stringify(medicine))
+      );
+    }
+
     const prescriptions = [
-      new Prescription(
-        "rx-1",
-        "2024-07-30,00:00:00.000",
-        "1001",
-        "2001",
-        "1",
-        "0",
-        "0"
-      ),
-      new Prescription(
-        "rx-2",
-        "2024-07-30,00:10:00.000",
-        "1002",
-        "2002",
-        "2",
-        "0",
-        "0"
-      ),
-      new Prescription(
-        "rx-3",
-        "2024-07-30,13:00:00.000",
-        "1003",
-        "2003",
-        "3",
-        "0",
-        "0"
-      ),
-      new Prescription(
-        "rx-4",
-        "2024-07-30,25:00:00.000",
-        "1004",
-        "2004",
-        "4",
-        "1",
-        "5"
-      ),
-      new Prescription(
-        "rx-5",
-        "2024-07-30,17:00:00.000",
-        "1001",
-        "2002",
-        "5",
-        "1",
-        "3"
-      ),
-      new Prescription(
-        "rx-6",
-        "2024-07-30,22:00:00.000",
-        "1006",
-        "2006",
-        "6",
-        "1",
-        "2"
-      ),
+      new Prescription("rx-1", "2024-07-30,00:01:00.000", "user-1", "user-4", "med-1,med-10", "0", "0"),
+      new Prescription("rx-2", "2024-07-30,00:10:00.000", "user-1", "user-4", "med-2,med-3,med-4", "0", "0"),
+      new Prescription("rx-3", "2024-07-30,13:00:00.000", "user-1", "user-4", "med-3", "0", "0"),
+      new Prescription("rx-4", "2024-07-30,25:00:00.000", "user-2", "user-5", "med-4,med-5", "1", "5"),
+      new Prescription("rx-5", "2024-07-30,17:00:00.000", "user-2", "user-5", "med-6", "1", "3"),
+      new Prescription("rx-6", "2024-07-30,22:00:00.000", "user-2", "user-5", "med-7,med-8", "1", "2"),
     ];
 
     for (const prescription of prescriptions) {
@@ -87,7 +77,7 @@ class RxContract extends Contract {
       throw new Error(`Asset: ${assetId} does not exist`);
     }
 
-    return JSON.parse(assetJSON.toString()); // object
+    return JSON.parse(assetJSON.toString());
   }
 
   async getAsset(ctx, assetId) {
@@ -103,9 +93,7 @@ class RxContract extends Contract {
     const iterator = await ctx.stub.getStateByRange("", "");
     let result = await iterator.next();
     while (!result.done) {
-      const strValue = Buffer.from(result.value.value.toString()).toString(
-        "utf8"
-      );
+      const strValue = Buffer.from(result.value.value.toString()).toString("utf8");
       let record;
       try {
         record = JSON.parse(strValue);
@@ -125,14 +113,7 @@ class RxContract extends Contract {
     return assetJSON && assetJSON.length > 0;
   }
 
-  async createActivity(
-    ctx,
-    timestamp,
-    prescriptionId,
-    actorId,
-    type,
-    parentId
-  ) {
+  async createActivity(ctx, timestamp, prescriptionId, actorId, type, parentId) {
     const activityId = `act-${this.activityIdCounter}`;
     const activity = new Activity(
       activityId,
@@ -152,9 +133,7 @@ class RxContract extends Contract {
     const iterator = await ctx.stub.getStateByRange("", "");
     let result = await iterator.next();
     while (!result.done) {
-      const strValue = Buffer.from(result.value.value.toString()).toString(
-        "utf8"
-      );
+      const strValue = Buffer.from(result.value.value.toString()).toString("utf8");
       let record;
       try {
         record = JSON.parse(strValue);
@@ -171,16 +150,7 @@ class RxContract extends Contract {
     return allResults.length > 0 ? allResults[0].activityId : null;
   }
 
-  async createRx(
-    ctx,
-    prescriptionId,
-    creationDate,
-    patientId,
-    doctorId,
-    medicineId,
-    isIter,
-    iterCount
-  ) {
+  async createRx(ctx, prescriptionId, creationDate, patientId, doctorId, medicineId, isIter, iterCount) {
     const exists = await this.assetExist(ctx, prescriptionId);
     if (exists) {
       throw new Error(`Asset: ${prescriptionId} already exist`);
@@ -205,7 +175,7 @@ class RxContract extends Contract {
       creationDate,
       prescriptionId,
       doctorId,
-      "1",
+      "create",
       null
     );
     await ctx.stub.putState(
@@ -237,7 +207,7 @@ class RxContract extends Contract {
         terminationDate,
         prescriptionId,
         doctorId,
-        "2",
+        "terminate",
         parentId
       );
       await ctx.stub.putState(
@@ -262,9 +232,7 @@ class RxContract extends Contract {
     if (Boolean(Number(prescription.isValid))) {
       if (Boolean(Number(prescription.isIter))) {
         if (Number(prescription.iterCount) > 1) {
-          prescription.iterCount = (
-            Number(prescription.iterCount) - 1
-          ).toString();
+          prescription.iterCount = (Number(prescription.iterCount) - 1).toString();
           prescription.pharmacistId = pharmacistId;
           await ctx.stub.putState(
             prescriptionId,
@@ -277,7 +245,7 @@ class RxContract extends Contract {
             filledDate,
             prescriptionId,
             pharmacistId,
-            "3",
+            "fill",
             parentId
           );
           await ctx.stub.putState(
@@ -315,7 +283,7 @@ class RxContract extends Contract {
       filledDate,
       prescription.prescriptionId,
       pharmacistId,
-      "4",
+      "complete",
       parentId
     );
     await ctx.stub.putState(
@@ -329,9 +297,7 @@ class RxContract extends Contract {
     const iterator = await ctx.stub.getStateByRange("", "");
     let result = await iterator.next();
     while (!result.done) {
-      const strValue = Buffer.from(result.value.value.toString()).toString(
-        "utf8"
-      );
+      const strValue = Buffer.from(result.value.value.toString()).toString("utf8");
       let record;
       try {
         record = JSON.parse(strValue);

@@ -1,13 +1,17 @@
 {
   "name": "prescription-blockchain-backend",
   "version": "1.0.0",
-  "description": "hyperledger fabric backend using express",
+  "description": "Hyperledger Fabric backend using Express",
   "main": "src/app.js",
   "engines": {
     "node": ">=18"
   },
   "scripts": {
-    "start": "node src/app.js"
+    "start": "node src/app.js",
+    "start:patient": "ENV_PATH=.env.patient node src/app.js",
+    "start:doctor": "ENV_PATH=.env.doctor node src/app.js",
+    "start:pharmacist": "ENV_PATH=.env.pharmacist node src/app.js",
+    "start:admin": "ENV_PATH=.env.admin node src/app.js"
   },
   "engineStrict": true,
   "author": "frotz",
@@ -16,6 +20,8 @@
     "express": "^4.17.1",
     "cors": "^2.8.5",
     "@grpc/grpc-js": "^1.10",
-    "@hyperledger/fabric-gateway": "^1.5"
+    "@hyperledger/fabric-gateway": "^1.5",
+    "jsonwebtoken": "^8.5.1",
+    "dotenv": "^10.0.0"
   }
 }

@@ -15,3 +15,5 @@ docker ps -a
 
 # cd addOrg3
 # ./addOrg3.sh up -c channel1
+
+bash ./invoke.sh 2 1
